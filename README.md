@@ -2,23 +2,23 @@
 
 A lightweight `aiohttp` service that bridges Android SMS app events to web clients over WebSockets.
 
-## Deploy on Railway
+## Deploy
 
-This repository is deployment-ready for Railway:
+[![Deploy to Koyeb](https://www.koyeb.com/static/images/deploy/button.svg)](https://app.koyeb.com/deploy?type=git&repository=github.com/JMTDI/nexussmsbridgeserver&branch=main&run_command=python+server.py&name=nexussmsbridgeserver)
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new?repo=https://github.com/JMTDI/nexussmsbridgeserver)
+
+This repository is deployment-ready:
 
 - Start command is defined in [Procfile](Procfile)
 - Railway deployment config is defined in [railway.json](railway.json)
 - Health check endpoint: `/health`
 - Dynamic port support via `PORT` environment variable
 
-### Quick Deploy
+### Steps
 
-[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new?repo=https://github.com/JMTDI/nexussmsbridgeserver)
-
-1. Create a new Railway project from this repository.
-2. Railway will detect the service and run `python server.py`.
-3. Set environment variables from [.env.example](.env.example).
-4. Deploy.
+1. Click a deploy button above.
+2. Set environment variables from [.env.example](.env.example).
+3. Deploy.
 
 ## Environment Variables
 
