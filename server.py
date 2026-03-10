@@ -24,8 +24,32 @@ logging.basicConfig(
 )
 log = logging.getLogger("nexusbridge")
 
-BASE_URL = "https://***"
-ALLOWED_ORIGINS = {BASE_URL, "http://localhost:8000", "http://127.0.0.1:8000", "null"}
+def _normalize_base_url(raw: str) -> str:
+    value = (raw or "").strip()
+    if not value:
+        return ""
+    if value.startswith("http://") or value.startswith("https://"):
+        return value.rstrip("/")
+    return f"https://{value.rstrip('/')}"
+
+
+PUBLIC_BASE_URL = _normalize_base_url(
+    os.getenv("PUBLIC_BASE_URL")
+    or os.getenv("RAILWAY_STATIC_URL")
+    or os.getenv("RAILWAY_PUBLIC_DOMAIN")
+)
+
+_cors_origins_env = os.getenv("CORS_ORIGINS", "")
+ALLOWED_ORIGINS = {
+    origin.strip().rstrip("/")
+    for origin in _cors_origins_env.split(",")
+    if origin.strip()
+}
+ALLOWED_ORIGINS.update({"http://localhost:8000", "http://127.0.0.1:8000", "null"})
+
+if PUBLIC_BASE_URL:
+    ALLOWED_ORIGINS.add(PUBLIC_BASE_URL)
+
 PING_INTERVAL = 30  # seconds
 
 # ── Security limits ───────────────────────────────────────────────────────────
@@ -147,8 +171,23 @@ def create_session() -> Session:
     return session
 
 
-def get_qr_data(session: Session) -> str:
-    return f"nexusbridge://pair?token={session.token}&server={BASE_URL}"
+def _request_origin(request: web.Request) -> str:
+    proto = request.headers.get("X-Forwarded-Proto", request.scheme)
+    host = request.headers.get("X-Forwarded-Host") or request.headers.get("Host", "")
+    if not host:
+        return ""
+    return f"{proto}://{host}".rstrip("/")
+
+
+def get_base_url(request: web.Request) -> str:
+    if PUBLIC_BASE_URL:
+        return PUBLIC_BASE_URL
+    origin = _request_origin(request)
+    return origin or "http://localhost:8000"
+
+
+def get_qr_data(session: Session, base_url: str) -> str:
+    return f"nexusbridge://pair?token={session.token}&server={base_url}"
 
 
 # ─── HTTP handlers ────────────────────────────────────────────────────────────
@@ -173,10 +212,11 @@ async def handle_new_session(request: web.Request) -> web.Response:
         log.warning("[HTTP] /new-session rejected — session cap reached")
         return web.json_response({"error": "Server capacity reached"}, status=503)
     session = create_session()
+    base_url = get_base_url(request)
     body = {
         "sessionToken": session.token,
         "pin": session.pin,
-        "qrData": get_qr_data(session),
+        "qrData": get_qr_data(session, base_url),
     }
     log.info(f"[HTTP] GET /new-session → token={session.token[:8]}... ip={ip}")
     return web.json_response(body)
@@ -204,6 +244,7 @@ async def handle_health(request: web.Request) -> web.Response:
 @middleware
 async def security_middleware(request: web.Request, handler):
     origin = request.headers.get("Origin", "")
+    current_origin = _request_origin(request)
 
     if request.method == "OPTIONS":
         response = web.Response()
@@ -216,8 +257,8 @@ async def security_middleware(request: web.Request, handler):
     # CORS — grant access to known origins; also allow requests with no Origin
     # (same-origin requests from the page the server itself serves never include
     # an Origin header, so we must return the header for them too).
-    if origin in ALLOWED_ORIGINS or not origin:
-        allow = origin if origin else BASE_URL
+    if origin in ALLOWED_ORIGINS or origin == current_origin or not origin:
+        allow = origin if origin else (current_origin or PUBLIC_BASE_URL or "*")
         response.headers["Access-Control-Allow-Origin"] = allow
         response.headers["Vary"] = "Origin"
     response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
@@ -381,9 +422,12 @@ async def ws_handler(request: web.Request) -> web.WebSocketResponse:
 # ─── Server startup ────────────────────────────────────────────────────────────
 
 async def main():
+    port = int(os.getenv("PORT", "8000"))
+
     log.info("=" * 60)
     log.info("  NexusBridge Server starting...")
-    log.info(f"  Base URL: {BASE_URL}")
+    log.info(f"  Public Base URL: {PUBLIC_BASE_URL or 'auto-detected from request headers'}")
+    log.info(f"  Port: {port}")
     log.info("=" * 60)
 
     asyncio.ensure_future(_cleanup_loop())
@@ -397,9 +441,9 @@ async def main():
 
     runner = web.AppRunner(app)
     await runner.setup()
-    site = web.TCPSite(runner, "0.0.0.0", 8000)
+    site = web.TCPSite(runner, "0.0.0.0", port)
     await site.start()
-    log.info("[SERVER] Listening on http://0.0.0.0:8000  (HTTP + WebSocket)")
+    log.info(f"[SERVER] Listening on http://0.0.0.0:{port}  (HTTP + WebSocket)")
 
     try:
         await asyncio.Future()  # Run forever
