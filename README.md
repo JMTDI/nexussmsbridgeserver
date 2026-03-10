@@ -13,6 +13,8 @@ This repository is deployment-ready for Railway:
 
 ### Quick Deploy
 
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new?repo=https://github.com/JMTDI/nexussmsbridgeserver)
+
 1. Create a new Railway project from this repository.
 2. Railway will detect the service and run `python server.py`.
 3. Set environment variables from [.env.example](.env.example).
