@@ -4,9 +4,6 @@ A lightweight `aiohttp` service that bridges Android SMS app events to web clien
 
 ## Deploy
 
-[![Deploy to Koyeb](https://www.koyeb.com/static/images/deploy/button.svg)](https://app.koyeb.com/deploy?type=git&repository=github.com/JMTDI/nexussmsbridgeserver&branch=main&run_command=python+server.py&name=nexussmsbridgeserver)
-[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new?repo=https://github.com/JMTDI/nexussmsbridgeserver)
-
 This repository is deployment-ready:
 
 - Start command is defined in [Procfile](Procfile)
