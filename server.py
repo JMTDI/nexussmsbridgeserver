@@ -45,7 +45,7 @@ ALLOWED_ORIGINS = {
     for origin in _cors_origins_env.split(",")
     if origin.strip()
 }
-ALLOWED_ORIGINS.update({"http://localhost:8000", "http://127.0.0.1:8000", "null"})
+ALLOWED_ORIGINS.update({"http://localhost:8080", "http://127.0.0.1:8080", "null"})
 
 if PUBLIC_BASE_URL:
     ALLOWED_ORIGINS.add(PUBLIC_BASE_URL)
